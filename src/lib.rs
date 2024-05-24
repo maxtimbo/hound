@@ -64,9 +64,11 @@ use write::WriteExt;
 
 mod read;
 mod write;
+mod cart;
 
 pub use read::{WavReader, WavIntoSamples, WavSamples, read_wave_header};
 pub use write::{SampleWriter16, WavWriter};
+pub use cart::CartChunk;
 
 pub use read::{ Chunk, ChunksReader };
 pub use write::ChunksWriter;
@@ -88,7 +90,7 @@ pub trait Sample: Sized {
     fn write_padded<W: io::Write>(self, writer: &mut W, bits: u16, byte_width: u16) -> Result<()>;
 
     /// Reads the audio sample from the WAVE data chunk.
-    fn read<R: io::Read>(reader: &mut R, SampleFormat, bytes: u16, bits: u16) -> Result<Self>;
+    fn read<R: io::Read>(reader: &mut R, format: SampleFormat, bytes: u16, bits: u16) -> Result<Self>;
 
     /// Cast the sample to a 16-bit sample.
     ///
@@ -414,14 +416,19 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            Error::IoError(ref err) => &err.description(),
-            Error::FormatError(reason) => reason,
-            Error::TooWide => "the sample has more bits than the destination type",
-            Error::UnfinishedSample => "the number of samples written is not a multiple of the number of channels",
-            Error::Unsupported => "the wave format of the file is not supported",
-            Error::InvalidSampleFormat => "the sample format differs from the destination format",
+            Error::IoError(ref err) => Some(err),
+            Error::FormatError(_) => None,
+            Error::TooWide => None,
+            Error::UnfinishedSample => None,
+            Error::Unsupported => None,
+            Error::InvalidSampleFormat => None,
+            //Error::FormatError(reason) => reason,
+            //Error::TooWide => "the sample has more bits than the destination type",
+            //Error::UnfinishedSample => "the number of samples written is not a multiple of the number of channels",
+            //Error::Unsupported => "the wave format of the file is not supported",
+            //Error::InvalidSampleFormat => "the sample format differs from the destination format",
         }
     }
 
