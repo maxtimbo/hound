@@ -187,11 +187,11 @@ impl Sample for i8 {
 
     fn write_padded<W: io::Write>(self, writer: &mut W, bits: u16, byte_width: u16) -> Result<()> {
         match (bits, byte_width) {
-            (8, 1) => Ok(try!(writer.write_u8(u8_from_signed(self)))),
-            (16, 2) => Ok(try!(writer.write_le_i16(self as i16))),
-            (24, 3) => Ok(try!(writer.write_le_i24(self as i32))),
-            (24, 4) => Ok(try!(writer.write_le_i24_4(self as i32))),
-            (32, 4) => Ok(try!(writer.write_le_i32(self as i32))),
+            (8, 1) => Ok(writer.write_u8(u8_from_signed(self))?),
+            (16, 2) => Ok(writer.write_le_i16(self as i16)?),
+            (24, 3) => Ok(writer.write_le_i24(self as i32)?),
+            (24, 4) => Ok(writer.write_le_i24_4(self as i32)?),
+            (32, 4) => Ok(writer.write_le_i32(self as i32)?),
             _ => Err(Error::Unsupported),
         }
     }
@@ -206,7 +206,7 @@ impl Sample for i8 {
             return Err(Error::InvalidSampleFormat);
         }
         match (bytes, bits) {
-            (1, 8) => Ok(try!(reader.read_u8().map(signed_from_u8))),
+            (1, 8) => Ok(reader.read_u8().map(signed_from_u8)?),
             (n, _) if n > 1 => Err(Error::TooWide),
             // TODO: add a genric decoder for any bit depth.
             _ => Err(Error::Unsupported),
@@ -221,13 +221,11 @@ impl Sample for i16 {
 
     fn write_padded<W: io::Write>(self, writer: &mut W, bits: u16, byte_width: u16) -> Result<()> {
         match (bits, byte_width) {
-            (8, 1) => Ok(try!(
-                writer.write_u8(u8_from_signed(try!(narrow_to_i8(self as i32))))
-            )),
-            (16, 2) => Ok(try!(writer.write_le_i16(self))),
-            (24, 3) => Ok(try!(writer.write_le_i24(self as i32))),
-            (24, 4) => Ok(try!(writer.write_le_i24_4(self as i32))),
-            (32, 4) => Ok(try!(writer.write_le_i32(self as i32))),
+            (8, 1) => Ok(writer.write_u8(u8_from_signed(narrow_to_i8(self as i32)?))?),
+            (16, 2) => Ok(writer.write_le_i16(self)?),
+            (24, 3) => Ok(writer.write_le_i24(self as i32)?),
+            (24, 4) => Ok(writer.write_le_i24_4(self as i32)?),
+            (32, 4) => Ok(writer.write_le_i32(self as i32)?),
             _ => Err(Error::Unsupported),
         }
     }
@@ -242,8 +240,8 @@ impl Sample for i16 {
             return Err(Error::InvalidSampleFormat);
         }
         match (bytes, bits) {
-            (1, 8) => Ok(try!(reader.read_u8().map(signed_from_u8).map(|x| x as i16))),
-            (2, 16) => Ok(try!(reader.read_le_i16())),
+            (1, 8) => Ok(reader.read_u8().map(signed_from_u8).map(|x| x as i16)?),
+            (2, 16) => Ok(reader.read_le_i16()?),
             (n, _) if n > 2 => Err(Error::TooWide),
             // TODO: add a generic decoder for any bit depth.
             _ => Err(Error::Unsupported),
@@ -258,13 +256,11 @@ impl Sample for i32 {
 
     fn write_padded<W: io::Write>(self, writer: &mut W, bits: u16, byte_width: u16) -> Result<()> {
         match (bits, byte_width) {
-            (8, 1) => Ok(try!(
-                writer.write_u8(u8_from_signed(try!(narrow_to_i8(self))))
-            )),
-            (16, 2) => Ok(try!(writer.write_le_i16(try!(narrow_to_i16(self))))),
-            (24, 3) => Ok(try!(writer.write_le_i24(try!(narrow_to_i24(self))))),
-            (24, 4) => Ok(try!(writer.write_le_i24_4(try!(narrow_to_i24(self))))),
-            (32, 4) => Ok(try!(writer.write_le_i32(self))),
+            (8, 1) => Ok(writer.write_u8(u8_from_signed(narrow_to_i8(self)?))?),
+            (16, 2) => Ok(writer.write_le_i16(narrow_to_i16(self)?)?),
+            (24, 3) => Ok(writer.write_le_i24(narrow_to_i24(self)?)?),
+            (24, 4) => Ok(writer.write_le_i24_4(narrow_to_i24(self)?)?),
+            (32, 4) => Ok(writer.write_le_i32(self)?),
             _ => Err(Error::Unsupported),
         }
     }
@@ -279,11 +275,11 @@ impl Sample for i32 {
             return Err(Error::InvalidSampleFormat);
         }
         match (bytes, bits) {
-            (1, 8) => Ok(try!(reader.read_u8().map(signed_from_u8).map(|x| x as i32))),
-            (2, 16) => Ok(try!(reader.read_le_i16().map(|x| x as i32))),
-            (3, 24) => Ok(try!(reader.read_le_i24())),
-            (4, 24) => Ok(try!(reader.read_le_i24_4())),
-            (4, 32) => Ok(try!(reader.read_le_i32())),
+            (1, 8) => Ok(reader.read_u8().map(signed_from_u8).map(|x| x as i32)?),
+            (2, 16) => Ok(reader.read_le_i16().map(|x| x as i32)?),
+            (3, 24) => Ok(reader.read_le_i24()?),
+            (4, 24) => Ok(reader.read_le_i24_4()?),
+            (4, 32) => Ok(reader.read_le_i32()?),
             (n, _) if n > 4 => Err(Error::TooWide),
             // TODO: add a generic decoder for any bit depth.
             _ => Err(Error::Unsupported),
@@ -298,7 +294,7 @@ impl Sample for f32 {
 
     fn write_padded<W: io::Write>(self, writer: &mut W, bits: u16, byte_width: u16) -> Result<()> {
         match (bits, byte_width) {
-            (32, 4) => Ok(try!(writer.write_le_f32(self))),
+            (32, 4) => Ok(writer.write_le_f32(self)?),
             _ => Err(Error::Unsupported),
         }
     }
@@ -311,7 +307,7 @@ impl Sample for f32 {
         match fmt {
             SampleFormat::Float =>
                 match (bytes, bits) {
-                    (4, 32) => Ok(try!(reader.read_le_f32())),
+                    (4, 32) => Ok(reader.read_le_f32()?),
                     (n, _) if n > 4 => Err(Error::TooWide),
                     _ => Err(Error::Unsupported),
                 },
@@ -319,9 +315,9 @@ impl Sample for f32 {
                 // 32-bit IEEE floats can represent signed integers up to 24 bits wide exactly
                 // (actually: 25 bits).
                 match (bytes, bits) {
-                    (1, 8) => Ok(try!(reader.read_u8().map(signed_from_u8).map(|x| x as f32))),
-                    (2, 16) => Ok(try!(reader.read_le_i16().map(|x| x as f32))),
-                    (3, 24) => Ok(try!(reader.read_le_i24()) as f32),
+                    (1, 8) => Ok(reader.read_u8().map(signed_from_u8).map(|x| x as f32)?),
+                    (2, 16) => Ok(reader.read_le_i16().map(|x| x as f32)?),
+                    (3, 24) => Ok(reader.read_le_i24()? as f32),
                     (n, _) if n > 3 => Err(Error::TooWide),
                     // TODO: add a generic decoder for any bit depth.
                     _ => Err(Error::Unsupported),
@@ -397,7 +393,7 @@ impl fmt::Display for Error {
         match *self {
             Error::IoError(ref err) => err.fmt(formatter),
             Error::FormatError(reason) => {
-                try!(formatter.write_str("Ill-formed WAVE file: "));
+                formatter.write_str("Ill-formed WAVE file: ")?;
                 formatter.write_str(reason)
             }
             Error::TooWide => {
@@ -420,7 +416,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::IoError(ref err) => err.description(),
+            Error::IoError(ref err) => &err.description(),
             Error::FormatError(reason) => reason,
             Error::TooWide => "the sample has more bits than the destination type",
             Error::UnfinishedSample => "the number of samples written is not a multiple of the number of channels",
@@ -429,7 +425,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::IoError(ref err) => Some(err),
             Error::FormatError(_) => None,
@@ -467,21 +463,6 @@ const KSDATAFORMAT_SUBTYPE_PCM: [u8; 16] = [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 
 const KSDATAFORMAT_SUBTYPE_IEEE_FLOAT: [u8; 16] = [0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
                                                    0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71];
 
-/// Subformat type for Ambisonic B-format audio as integers.
-///
-/// See also <http://dream.cs.bath.ac.uk/researchdev/wave-ex/bformat.html>.
-const KSDATAFORMAT_SUBTYPE_AMBISONIC_B_FORMAT_PCM: [u8; 16] = [
-    0x01, 0x00, 0x00, 0x00, 0x21, 0x07, 0xd3, 0x11, 0x86,
-    0x44, 0xc8, 0xc1, 0xca, 0x00, 0x00, 0x00
-];
-
-/// Subformat type for Ambisonic B-format audio as float.
-///
-/// See also <http://dream.cs.bath.ac.uk/researchdev/wave-ex/bformat.html>.
-const KSDATAFORMAT_SUBTYPE_AMBISONIC_B_FORMAT_IEEE_FLOAT: [u8; 16] = [
-    0x03, 0x00, 0x00, 0x00, 0x21, 0x07, 0xd3, 0x11, 0x86,
-    0x44, 0xc8, 0xc1, 0xca, 0x00, 0x00, 0x00
-];
 
 impl WavSpec {
     /// Get "stand-alone" wav header representing infinite or unknown size wav file.
