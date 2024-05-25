@@ -17,6 +17,7 @@ use std::marker;
 //use std::mem;
 use std::path;
 use super::{Error, Result, Sample, SampleFormat, WavSpec};
+use cart::CartChunk;
 
 /// Extends the functionality of `io::Read` with additional methods.
 ///
@@ -269,6 +270,8 @@ impl<'r, R: io::Read + io::Seek> io::Seek for EmbeddedReader<'r, R> {
 pub enum Chunk<'r, R: 'r + io::Read> {
     /// format chunk, fully parsed into a WavSpecEx
     Fmt(WavSpecEx),
+    /// cart chunk, used by broadcast industry
+    Cart(CartChunk),
     /// fact chunk, used by non-pcm encoding but redundant
     Fact,
     /// data chunk, where the samples are actually stored
@@ -287,6 +290,8 @@ pub struct ChunksReader<R: io::Read> {
     reader: R,
     /// the Wave format specification, if it has been read already
     pub spec_ex: Option<WavSpecEx>,
+    /// the Cart Chunk specification, if it exists
+    pub cart_chunk: Option<CartChunk>,
     /// when inside the main data state, keeps track of decoding and chunk
     /// boundaries
     pub data_state: Option<DataReadingState>,
@@ -312,6 +317,7 @@ impl<R: io::Read> ChunksReader<R> {
         Ok(ChunksReader {
             reader: reader,
             spec_ex: None,
+            cart_chunk: None,
             data_state: None,
         })
     }
@@ -395,6 +401,11 @@ impl<R: io::Read> ChunksReader<R> {
                 // http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
                 let _samples_per_channel = self.reader.read_le_u32();
                 Ok(Some(Chunk::Fact))
+            }
+            b"scot" => {
+                let cart_chunk = self.read_cart_chunk(len)?;
+                self.cart_chunk = Some(cart_chunk);
+                Ok(Some(Chunk::Cart(cart_chunk)))
             }
             b"data" => {
                 if let Some(spec_ex) = self.spec_ex {
@@ -540,6 +551,151 @@ impl<R: io::Read> ChunksReader<R> {
         Ok(WavSpecEx {
             spec: spec,
             bytes_per_sample: bytes_per_sample,
+        })
+    }
+
+    fn read_cart_chunk(&mut self, chunk_len: u32) -> Result<CartChunk> {
+        if chunk_len < 512 {
+            return Err(Error::FormatError("invalid cart chunk size"));
+        }
+        // Inspect the CartChunk struct for full specs
+        let scotsize = self.read_le_u32()?;
+        let alter = self.read_u8()?;
+        let attrib = self.read_u8()?;
+        let artnum = self.read_le_i16()?;
+        let mut name = [0u8; 43];
+        self.read_into(&mut name)?;
+        let copy = self.read_4_bytes()?;
+        let padd = self.read_u8()?;
+        let mut asclen = [0u8; 5];
+        self.read_into(&mut asclen)?;
+        let start_seconds = self.read_le_i16()?;
+        let start_hundreths = self.read_le_i16()?;
+        let end_seconds = self.read_le_i16()?;
+        let end_hundreths = self.read_le_i16()?;
+        let mut start_date = [0u8; 6];
+        self.read_into(&mut start_date)?;
+        let mut kill_date = [0u8; 6];
+        self.read_into(&mut kill_date)?;
+        let start_hour = self.read_u8()?;
+        let kill_hour = self.read_u8()?;
+        let digital = self.read_u8()?;
+        let sample_rate = self.read_le_i16()?;
+        let stereo = self.read_u8()?;
+        let compress = self.read_u8()?;
+        let eomstrt = self.read_le_i32()?;
+        let eomlen = self.read_le_i16()?;
+        let attrib2 = self.read_le_u32()?;
+        let hookstart_ms = self.read_le_u32()?;
+        let hookeom_ms = self.read_le_u32()?;
+        let hookend_ms = self.read_le_u32()?;
+        let catfontcolor = self.read_le_u32()?;
+        let catcolor = self.read_le_u32()?;
+        let segeompos = self.read_le_i32()?;
+        let vt_start_secs = self.read_le_i16()?;
+        let vt_start_hunds = self.read_le_i16()?;
+        let mut priorcat = [0u8; 3];
+        self.read_into(&mut priorcat)?;
+        let priorcopy = self.read_4_bytes()?;
+        let priorpadd = self.read_u8()?;
+        let mut postcat = [0u8; 3];
+        self.read_into(&mut postcat)?;
+        let postcopy = self.read_4_bytes()?;
+        let postpadd = self.read_u8()?;
+        let mut hrcanplay = [0u8; 21];
+        self.read_into(&mut hrcanplay)?;
+        let mut future2 = [0u8; 108];
+        self.read_into(&mut future2)?;
+        let mut artist = [0u8; 34];
+        self.read_into(&mut artist)?;
+        let mut trivia = [0u8; 34];
+        self.read_into(&mut trivia)?;
+        let mut intro = [0u8; 2];
+        self.read_into(&mut intro)?;
+        let end = self.read_u8()?;
+        let mut year = [0u8; 4];
+        self.read_into(&mut year)?;
+        let obsolete2 = self.read_u8()?;
+        let record_hour = self.read_u8()?;
+        let mut rdate = [0u8; 6];
+        self.read_into(&mut rdate)?;
+        let mpegbitrate = self.read_le_i16()?;
+        let pitch = self.read_le_u16()?;
+        let playlevel = self.read_le_u16()?;
+        let lenvalid = self.read_u8()?;
+        let filelength = self.read_le_u32()?;
+        let newplaylev = self.read_le_u16()?;
+        let chopsize = self.read_le_u32()?;
+        let vteomovr = self.read_le_u32()?;
+        let desiredlen = self.read_le_u32()?;
+        let trigger1 = self.read_le_u32()?;
+        let trigger2 = self.read_le_u32()?;
+        let trigger3 = self.read_le_u32()?;
+        let category = self.read_4_bytes()?;
+        let mut fillout = [0u8; 33];
+        self.read_into(&mut fillout)?;
+        Ok(CartChunk {
+            scotsize,
+            alter,
+            attrib,
+            artnum,
+            name,
+            copy,
+            padd,
+            asclen,
+            start_seconds,
+            start_hundreths,
+            end_seconds,
+            end_hundreths,
+            start_date,
+            kill_date,
+            start_hour,
+            kill_hour,
+            digital,
+            sample_rate,
+            stereo,
+            compress,
+            eomstrt,
+            eomlen,
+            attrib2,
+            hookstart_ms,
+            hookeom_ms,
+            hookend_ms,
+            catfontcolor,
+            catcolor,
+            segeompos,
+            vt_start_secs,
+            vt_start_hunds,
+            priorcat,
+            priorcopy,
+            priorpadd,
+            postcat,
+            postcopy,
+            postpadd,
+            hrcanplay,
+            future2,
+            artist,
+            trivia,
+            intro,
+            end,
+            year,
+            obsolete2,
+            record_hour,
+            rdate,
+            mpegbitrate,
+            pitch,
+            playlevel,
+            lenvalid,
+            filelength,
+            newplaylev,
+            chopsize,
+            vteomovr,
+            desiredlen,
+            trigger1,
+            trigger2,
+            trigger3,
+            category,
+            fillout,
         })
     }
 

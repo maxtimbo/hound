@@ -1,12 +1,13 @@
 /// Cart Chunk, or Scott Chunk
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct CartChunk {
     /// scott_tag is always scot
-    pub scott_tag:          [u8; 4],    // char     scott[4]
+    //pub scott_tag:          [u8; 4],    // char     scott[4]
 
     /// scotsize should be 424
     /// See final `fillout` field below.
-    pub scotsize:           u64,        // long     scotsize
+    pub scotsize:           u32,        // long     scotsize
+    //pub scotsize:           u64,        // long     scotsize
 
     /// "scratchpad" area used by program. Should be ZERO
     pub alter:              u8,         // char     alter
@@ -128,7 +129,7 @@ pub struct CartChunk {
     /// `eom[strt|len]` describe the position and length of EOM
     /// `eomstrt` length in tenths from audio beginning to start of EOM
     /// `eomlen` lenth of EOM in hendreths
-    pub eomstrt:            i64,        // long     eomstrt
+    pub eomstrt:            i32,        // long     eomstrt
     /// 
     pub eomlen:             i16,        // short    eomlen
 
@@ -170,7 +171,7 @@ pub struct CartChunk {
 
     /// location of EOM when dealing with a file containing internal segments
     /// Store: ZERO
-    pub segeompos:          i64,        // long     segeompos
+    pub segeompos:          i32,        // long     segeompos
 
     /// ---- Voice Track Support ---- //
     /// These two values represent a single value:

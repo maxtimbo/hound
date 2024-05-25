@@ -68,7 +68,6 @@ mod cart;
 
 pub use read::{WavReader, WavIntoSamples, WavSamples, read_wave_header};
 pub use write::{SampleWriter16, WavWriter};
-pub use cart::CartChunk;
 
 pub use read::{ Chunk, ChunksReader };
 pub use write::ChunksWriter;
