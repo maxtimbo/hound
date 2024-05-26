@@ -341,7 +341,7 @@ impl<R: io::Read> ChunksReader<R> {
     /// This function will panic if it is called while the reader is not in
     /// the data chunk, or if the format has not been parsed.
     pub fn samples<S: Sample>(&mut self) -> WavSamples<R, S> {
-        let _data_state = self.data_state.expect("Not in the data chunk.");
+        let _data_state = self.data_state.expect("Samples: Not in the data chunk.");
         WavSamples {
             reader: self,
             phantom_sample: marker::PhantomData,
@@ -353,7 +353,7 @@ impl<R: io::Read> ChunksReader<R> {
     ///
     /// See `samples()` for more info.
     pub fn into_samples<S: Sample>(self) -> WavIntoSamples<R, S> {
-        let _data_state = self.data_state.expect("Not in the data chunk.");
+        let _data_state = self.data_state.expect("into_samples: Not in the data chunk.");
         WavIntoSamples {
             reader: self,
             phantom_sample: marker::PhantomData,
@@ -373,6 +373,7 @@ impl<R: io::Read> ChunksReader<R> {
     /// keep track of the audio samples parsing.
     pub fn next(&mut self) -> Result<Option<Chunk<R>>> {
         if let Some(ref mut data) = self.data_state {
+            println!("data skip_remaining");
             data.chunk.skip_remaining(&mut self.reader)?
         }
         self.data_state = None;
@@ -388,6 +389,12 @@ impl<R: io::Read> ChunksReader<R> {
                 self.spec_ex = Some(spec_ex);
                 Ok(Some(Chunk::Fmt(spec_ex)))
             }
+            b"scot" => {
+                let cart_chunk = self.read_cart_chunk(len)?;
+                self.cart_chunk = Some(cart_chunk);
+                println!("cart_chunk: {}", cart_chunk);
+                Ok(Some(Chunk::Cart(cart_chunk)))
+            }
             b"fact" => {
                 // All (compressed) non-PCM formats must have a fact chunk
                 // (Rev. 3 documentation). The chunk contains at least one
@@ -401,11 +408,6 @@ impl<R: io::Read> ChunksReader<R> {
                 // http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
                 let _samples_per_channel = self.reader.read_le_u32();
                 Ok(Some(Chunk::Fact))
-            }
-            b"scot" => {
-                let cart_chunk = self.read_cart_chunk(len)?;
-                self.cart_chunk = Some(cart_chunk);
-                Ok(Some(Chunk::Cart(cart_chunk)))
             }
             b"data" => {
                 if let Some(spec_ex) = self.spec_ex {
@@ -555,87 +557,86 @@ impl<R: io::Read> ChunksReader<R> {
     }
 
     fn read_cart_chunk(&mut self, chunk_len: u32) -> Result<CartChunk> {
-        if chunk_len < 512 {
+        if chunk_len < 424 {
             return Err(Error::FormatError("invalid cart chunk size"));
         }
         // Inspect the CartChunk struct for full specs
-        let scotsize = self.read_le_u32()?;
-        let alter = self.read_u8()?;
-        let attrib = self.read_u8()?;
-        let artnum = self.read_le_i16()?;
+        let alter = self.reader.read_u8()?;
+        let attrib = self.reader.read_u8()?;
+        let artnum = self.reader.read_le_i16()?;
         let mut name = [0u8; 43];
-        self.read_into(&mut name)?;
-        let copy = self.read_4_bytes()?;
-        let padd = self.read_u8()?;
+        self.reader.read_into(&mut name)?;
+        let copy = self.reader.read_4_bytes()?;
+        let padd = self.reader.read_u8()?;
         let mut asclen = [0u8; 5];
-        self.read_into(&mut asclen)?;
-        let start_seconds = self.read_le_i16()?;
-        let start_hundreths = self.read_le_i16()?;
-        let end_seconds = self.read_le_i16()?;
-        let end_hundreths = self.read_le_i16()?;
+        self.reader.read_into(&mut asclen)?;
+        let start_seconds = self.reader.read_le_i16()?;
+        let start_hundreths = self.reader.read_le_i16()?;
+        let end_seconds = self.reader.read_le_i16()?;
+        let end_hundreths = self.reader.read_le_i16()?;
         let mut start_date = [0u8; 6];
-        self.read_into(&mut start_date)?;
+        self.reader.read_into(&mut start_date)?;
         let mut kill_date = [0u8; 6];
-        self.read_into(&mut kill_date)?;
-        let start_hour = self.read_u8()?;
-        let kill_hour = self.read_u8()?;
-        let digital = self.read_u8()?;
-        let sample_rate = self.read_le_i16()?;
-        let stereo = self.read_u8()?;
-        let compress = self.read_u8()?;
-        let eomstrt = self.read_le_i32()?;
-        let eomlen = self.read_le_i16()?;
-        let attrib2 = self.read_le_u32()?;
-        let hookstart_ms = self.read_le_u32()?;
-        let hookeom_ms = self.read_le_u32()?;
-        let hookend_ms = self.read_le_u32()?;
-        let catfontcolor = self.read_le_u32()?;
-        let catcolor = self.read_le_u32()?;
-        let segeompos = self.read_le_i32()?;
-        let vt_start_secs = self.read_le_i16()?;
-        let vt_start_hunds = self.read_le_i16()?;
+        self.reader.read_into(&mut kill_date)?;
+        let start_hour = self.reader.read_u8()?;
+        let kill_hour = self.reader.read_u8()?;
+        let digital = self.reader.read_u8()?;
+        let sample_rate = self.reader.read_le_i16()?;
+        let stereo = self.reader.read_u8()?;
+        let compress = self.reader.read_u8()?;
+        let eomstrt = self.reader.read_le_i32()?;
+        let eomlen = self.reader.read_le_i16()?;
+        let attrib2 = self.reader.read_le_u32()?;
+        let hookstart_ms = self.reader.read_le_u32()?;
+        let hookeom_ms = self.reader.read_le_u32()?;
+        let hookend_ms = self.reader.read_le_u32()?;
+        let catfontcolor = self.reader.read_le_u32()?;
+        let catcolor = self.reader.read_le_u32()?;
+        let segeompos = self.reader.read_le_i32()?;
+        let vt_start_secs = self.reader.read_le_i16()?;
+        let vt_start_hunds = self.reader.read_le_i16()?;
         let mut priorcat = [0u8; 3];
-        self.read_into(&mut priorcat)?;
-        let priorcopy = self.read_4_bytes()?;
-        let priorpadd = self.read_u8()?;
+        self.reader.read_into(&mut priorcat)?;
+        let priorcopy = self.reader.read_4_bytes()?;
+        let priorpadd = self.reader.read_u8()?;
         let mut postcat = [0u8; 3];
-        self.read_into(&mut postcat)?;
-        let postcopy = self.read_4_bytes()?;
-        let postpadd = self.read_u8()?;
+        self.reader.read_into(&mut postcat)?;
+        let postcopy = self.reader.read_4_bytes()?;
+        let postpadd = self.reader.read_u8()?;
         let mut hrcanplay = [0u8; 21];
-        self.read_into(&mut hrcanplay)?;
+        self.reader.read_into(&mut hrcanplay)?;
         let mut future2 = [0u8; 108];
-        self.read_into(&mut future2)?;
+        self.reader.read_into(&mut future2)?;
         let mut artist = [0u8; 34];
-        self.read_into(&mut artist)?;
+        self.reader.read_into(&mut artist)?;
         let mut trivia = [0u8; 34];
-        self.read_into(&mut trivia)?;
+        self.reader.read_into(&mut trivia)?;
         let mut intro = [0u8; 2];
-        self.read_into(&mut intro)?;
-        let end = self.read_u8()?;
+        self.reader.read_into(&mut intro)?;
+        let end = self.reader.read_u8()?;
         let mut year = [0u8; 4];
-        self.read_into(&mut year)?;
-        let obsolete2 = self.read_u8()?;
-        let record_hour = self.read_u8()?;
+        self.reader.read_into(&mut year)?;
+        let obsolete2 = self.reader.read_u8()?;
+        let record_hour = self.reader.read_u8()?;
         let mut rdate = [0u8; 6];
-        self.read_into(&mut rdate)?;
-        let mpegbitrate = self.read_le_i16()?;
-        let pitch = self.read_le_u16()?;
-        let playlevel = self.read_le_u16()?;
-        let lenvalid = self.read_u8()?;
-        let filelength = self.read_le_u32()?;
-        let newplaylev = self.read_le_u16()?;
-        let chopsize = self.read_le_u32()?;
-        let vteomovr = self.read_le_u32()?;
-        let desiredlen = self.read_le_u32()?;
-        let trigger1 = self.read_le_u32()?;
-        let trigger2 = self.read_le_u32()?;
-        let trigger3 = self.read_le_u32()?;
-        let category = self.read_4_bytes()?;
+        self.reader.read_into(&mut rdate)?;
+        let mpegbitrate = self.reader.read_le_i16()?;
+        let pitch = self.reader.read_le_u16()?;
+        let playlevel = self.reader.read_le_u16()?;
+        let lenvalid = self.reader.read_u8()?;
+        let filelength = self.reader.read_le_u32()?;
+        let newplaylev = self.reader.read_le_u16()?;
+        let chopsize = self.reader.read_le_u32()?;
+        let vteomovr = self.reader.read_le_u32()?;
+        let desiredlen = self.reader.read_le_u32()?;
+        let trigger1 = self.reader.read_le_u32()?;
+        let trigger2 = self.reader.read_le_u32()?;
+        let trigger3 = self.reader.read_le_u32()?;
+        let category = self.reader.read_4_bytes()?;
         let mut fillout = [0u8; 33];
-        self.read_into(&mut fillout)?;
+        self.reader.read_into(&mut fillout)?;
         Ok(CartChunk {
-            scotsize,
+            //scotsize,
             alter,
             attrib,
             artnum,
@@ -844,7 +845,7 @@ impl<R: io::Read> ChunksReader<R> {
     pub fn seek(&mut self, time: u32) -> io::Result<()>
         where R: io::Seek,
     {
-        let data = self.data_state.as_mut().expect("Not in the data chunk.");
+        let data = self.data_state.as_mut().expect("seek: Not in the data chunk.");
         let wanted_sample = time as i64 * data.spec_ex.spec.channels as i64;
         let wanted_byte = wanted_sample * data.spec_ex.bytes_per_sample as i64;
         data.chunk.seek(&mut self.reader, io::SeekFrom::Start(wanted_byte as u64))?;
@@ -854,7 +855,7 @@ impl<R: io::Read> ChunksReader<R> {
 
 impl<R: io::Read> io::Read for ChunksReader<R> {
     fn read(&mut self, buffer: &mut[u8]) -> io::Result<usize> {
-        let data = self.data_state.as_mut().expect("Not in the data chunk.");
+        let data = self.data_state.as_mut().expect("read: Not in the data chunk.");
         data.chunk.read(&mut self.reader, buffer)
     }
 }
@@ -994,7 +995,7 @@ impl<R> WavReader<R>
     /// dividing this number by the sample rate. The duration is independent of
     /// how many samples have been read already.
     pub fn duration(&self) -> u32 {
-        let data = self.reader.data_state.expect("Not in the data chunk.");
+        let data = self.reader.data_state.expect("duration: Not in the data chunk.");
         self.len() / data.spec_ex.spec.channels as u32
     }
 

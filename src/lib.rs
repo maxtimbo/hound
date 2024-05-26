@@ -507,6 +507,7 @@ impl WavSpec {
     /// }
     /// ```
     pub fn into_header_for_infinite_file(self) -> Vec<u8> {
+        println!("into_header_for_infinite_file");
         let mut c = std::io::Cursor::new(Vec::with_capacity(0x44));
         {
             let w = WavWriter::new(&mut c, self);

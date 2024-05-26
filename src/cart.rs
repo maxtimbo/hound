@@ -1,12 +1,14 @@
+use std::fmt;
+
 /// Cart Chunk, or Scott Chunk
 #[derive(Clone, Copy, Debug)]
 pub struct CartChunk {
     /// scott_tag is always scot
     //pub scott_tag:          [u8; 4],    // char     scott[4]
 
-    /// scotsize should be 424
-    /// See final `fillout` field below.
-    pub scotsize:           u32,        // long     scotsize
+    ///// scotsize should be 424
+    ///// See final `fillout` field below.
+    //pub scotsize:           u32,        // long     scotsize
     //pub scotsize:           u64,        // long     scotsize
 
     /// "scratchpad" area used by program. Should be ZERO
@@ -330,4 +332,66 @@ pub struct CartChunk {
     /// within a RIFF-style chunk)
     pub fillout:            [u8; 33],   // char     fillout[33]
 }
+macro_rules! to_utf8 {
+    ($e:expr) => {
+        match std::str::from_utf8($e) {
+            Ok(s) => s,
+            Err(_) => "<Invalid UTF8>",
+        }
+    };
+}
 
+impl fmt::Display for CartChunk {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let attrib2_byte = (self.attrib2 & 0xFF) as u8;
+        let mut hrcanplay_bits = String::new();
+        for (i, byte) in self.hrcanplay.iter().enumerate() {
+            if i > 0 && i % 3 == 0 {
+                hrcanplay_bits.push('\n');
+            }
+            for j in (0..8).rev() {
+                let bit = (byte >> j) & 1;
+                hrcanplay_bits.push_str(&format!("{}", bit));
+            }
+        }
+
+        write!(f, "CartChunk:\n")?;
+        write!(f, "\tattrib\t\t\t:{:08},\n", self.attrib)?;
+        write!(f, "\tname\t\t\t:{},\n", to_utf8!(&self.name))?;
+        write!(f, "\tcopy\t\t\t:{},\n", to_utf8!(&self.copy))?;
+        write!(f, "\tasclen\t\t\t:{},\n", to_utf8!(&self.asclen))?;
+        write!(f, "\tstart_seconds\t\t:{},\n", self.start_seconds)?;
+        write!(f, "\tstart_hundreths\t\t:{},\n", self.start_hundreths)?;
+        write!(f, "\tend_seconds\t\t:{},\n", self.end_seconds)?;
+        write!(f, "\tend_hundreths\t\t:{},\n", self.end_hundreths)?;
+        write!(f, "\tstart_date\t\t:{},\n", to_utf8!(&self.start_date))?;
+        write!(f, "\tkill_date\t\t:{},\n", to_utf8!(&self.kill_date))?;
+        write!(f, "\tstart_hour\t\t:{},\n", self.start_hour)?;
+        write!(f, "\tkill_hour\t\t:{},\n", self.kill_hour)?;
+        write!(f, "\tdigital\t\t\t:{},\n", to_utf8!(&vec![self.digital]))?;
+        write!(f, "\tsample_rate\t\t:{},\n", self.sample_rate)?;
+        write!(f, "\tstereo\t\t\t:{},\n", to_utf8!(&vec![self.stereo]))?;
+        write!(f, "\tcompress\t\t:{},\n", self.compress)?;
+        write!(f, "\teomstrt\t\t\t:{},\n", self.eomstrt)?;
+        write!(f, "\teomlen\t\t\t:{},\n", self.eomlen)?;
+        write!(f, "\tattrib2\t\t\t:{:08b},\n", attrib2_byte)?;
+        write!(f, "\thookstart_ms\t\t:{},\n", self.hookstart_ms)?;
+        write!(f, "\thookeom_ms\t\t:{},\n", self.hookeom_ms)?;
+        write!(f, "\thookend_ms\t\t:{},\n", self.hookend_ms)?;
+        write!(f, "\tcatfontcolor\t\t:{},\n", self.catfontcolor)?;
+        write!(f, "\tcatcolor\t\t:{},\n", self.catcolor)?;
+        write!(f, "\tsegeompos\t\t:{},\n", self.segeompos)?;
+        write!(f, "\tvt_start_secs\t\t:{},\n", self.vt_start_secs)?;
+        write!(f, "\tvt_start_hunds\t\t:{},\n", self.vt_start_hunds)?;
+        write!(f, "\tpriorcat\t\t:{},\n", to_utf8!(&self.priorcat))?;
+        write!(f, "\tpriorcopy\t\t:{},\n", to_utf8!(&self.priorcopy))?;
+        write!(f, "\tpriorpadd\t\t:{},\n", to_utf8!(&vec![self.priorpadd]))?;
+        write!(f, "\tpostcat\t\t\t:{},\n", to_utf8!(&self.postcat))?;
+        write!(f, "\tpostcopy\t\t:{},\n", to_utf8!(&self.postcopy))?;
+        write!(f, "\tpostpadd\t\t:{},\n", to_utf8!(&vec![self.postpadd]))?;
+        write!(f, "\thrcanplay:\n{}\n", hrcanplay_bits)?;
+        write!(f, "\tartist\t\t\t:{},\n", to_utf8!(&self.artist))?;
+        write!(f, "\tcategory\t\t:{},\n", to_utf8!(&self.category))?;
+        write!(f, "\t~~~")
+    }
+}
